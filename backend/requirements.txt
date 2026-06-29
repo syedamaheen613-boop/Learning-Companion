@@ -1,0 +1,8 @@
+# Neo4j driver
+neo4j==5.20.0
+
+# Environment variable loading
+python-dotenv==1.0.1
+
+# Sarvam AI (add when ready)
+# sarvam-ai

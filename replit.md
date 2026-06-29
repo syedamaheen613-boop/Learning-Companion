@@ -1,6 +1,6 @@
-# [Project name]
+# Python Backend
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Plain Python backend for Neo4j graph database integration and Sarvam AI voice features.
 
 ## Run & Operate
 
