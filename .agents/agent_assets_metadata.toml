@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "-S11mjvjbbGpKpVDtUwH9"
+uri = "file://test_reply.wav"
+type = "audio"
+title = "Sarvam TTS — test_reply.wav"
