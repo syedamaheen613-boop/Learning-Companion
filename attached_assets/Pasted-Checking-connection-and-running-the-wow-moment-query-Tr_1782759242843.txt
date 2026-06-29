@@ -1,0 +1,51 @@
+Checking connection and running the wow-moment query...
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/backend/main.py", line 61, in <module>
+    results = gm.find_connection_to_past_mistake("student_1", "Merge Sort")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/backend/main.py", line 31, in find_connection_to_past_mistake
+    result = session.run(query, student_id=student_id, new_concept_name=new_concept_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/work/session.py", line 302, in run
+    self._connect(self._config.default_access_mode)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/work/session.py", line 130, in _connect
+    super()._connect(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/work/workspace.py", line 165, in _connect
+    self._pool.update_routing_table(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_pool.py", line 774, in update_routing_table
+    if self._update_routing_table_from(
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_pool.py", line 720, in _update_routing_table_from
+    new_routing_table = self.fetch_routing_table(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_pool.py", line 657, in fetch_routing_table
+    new_routing_info = self.fetch_routing_info(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_pool.py", line 625, in fetch_routing_info
+    cx = self._acquire(address, auth, deadline, None)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_pool.py", line 313, in _acquire
+    return connection_creator()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_pool.py", line 163, in connection_creator
+    connection = self.opener(
+                 ^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_pool.py", line 557, in opener
+    return Bolt.open(
+           ^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_bolt.py", line 488, in open
+    connection.hello()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_bolt5.py", line 574, in hello
+    self.fetch_all()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_bolt.py", line 864, in fetch_all
+    detail_delta, summary_delta = self.fetch_message()
+                                  ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_bolt.py", line 850, in fetch_message
+    res = self._process_message(tag, fields)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_bolt5.py", line 369, in _process_message
+    response.on_failure(summary_metadata or {})
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/neo4j/_sync/io/_common.py", line 281, in on_failure
+    raise Neo4jError.hydrate(**metadata)
+neo4j.exceptions.AuthError: {code: Neo.ClientError.Security.Unauthorized} {message: The client is unauthorized due to authentication failure.}
