@@ -22,3 +22,6 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
+
+[[ports]]
+localPort = 5000
