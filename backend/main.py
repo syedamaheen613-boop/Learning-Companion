@@ -54,37 +54,10 @@ class GraphMemory:
             result = session.run(query, student_id=student_id)
             return [record.data() for record in result]
 
-    def seed_sample_data(self):
-        """Create sample student, concepts, and mistakes for testing."""
-        query = """
-        MERGE (s:Student {id: 'student_1', name: 'Alice'})
-
-        MERGE (arrays:Concept {name: 'Arrays'})
-        MERGE (sorting:Concept {name: 'Sorting'})
-        MERGE (mergeSort:Concept {name: 'Merge Sort'})
-
-        MERGE (mergeSort)-[:DEPENDS_ON]->(sorting)
-        MERGE (sorting)-[:DEPENDS_ON]->(arrays)
-
-        MERGE (m:Mistake {description: 'Confused index out of bounds when iterating arrays', date: date()})
-        MERGE (s)-[:MADE]->(m)
-        MERGE (m)-[:ABOUT]->(arrays)
-
-        RETURN s.name AS student, mergeSort.name AS concept
-        """
-        with self.driver.session() as session:
-            result = session.run(query)
-            row = result.single()
-            print(f"Seeded: student={row['student']}, concept={row['concept']}")
-
 
 if __name__ == "__main__":
     gm = GraphMemory()
-
-    print("Seeding sample data...\n")
-    gm.seed_sample_data()
-
-    print("\nChecking connection and running the wow-moment query...\n")
+    print("Running wow-moment query against live Neo4j instance...\n")
     results = gm.find_connection_to_past_mistake("student_1", "Merge Sort")
     if results:
         for r in results:
@@ -92,5 +65,5 @@ if __name__ == "__main__":
             print(f"Connected weakness:  {r['connectedWeakness']}")
             print(f"Past mistake:        {r['pastMistake']}")
     else:
-        print("No connection found — check your seed data or student_id.")
+        print("No results — the instance has no matching data for student_1 / Merge Sort.")
     gm.close()
