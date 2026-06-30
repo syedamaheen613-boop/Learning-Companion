@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Learning Companion</title>
+<style>
+  body {
+    font-family: -apple-system, sans-serif;
+    background: #0f0f12;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px;
+  }
+  .card {
+    background: #1a1a1f;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  p.sub { color: #999; font-size: 13px; margin-bottom: 20px; }
+  input[type=text] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #111;
+    color: #eee;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+  }
+  button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .btn-primary { background: #7c5cff; color: white; }
+  .btn-record { background: #e85c5c; color: white; }
+  .btn-record.recording { background: #ff2d2d; }
+  #reply {
+    margin-top: 16px;
+    padding: 12px;
+    background: #111;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 24px;
+  }
+  #graph {
+    margin-top: 16px;
+    font-size: 12px;
+    color: #888;
+  }
+  audio { width: 100%; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>🧠 Learning Companion</h1>
+  <p class="sub">Ask a question, by text or voice</p>
+
+  <input type="text" id="topicInput" placeholder="e.g. Merge Sort">
+  <button class="btn-primary" onclick="askByText()">Ask</button>
+
+  <button class="btn-record" id="recordBtn" onclick="toggleRecording()">🎤 Hold to ask by voice</button>
+
+  <hr style="border-color:#333; margin: 16px 0;">
+
+  <p class="sub" style="margin-bottom:8px;">Demo: simulate getting a topic wrong</p>
+  <input type="text" id="mistakeDescInput" placeholder="What went wrong? e.g. Mixed up INNER and LEFT join">
+  <button style="background:#3a3a3a; color:#eee;" onclick="simulateMistake()">⚠️ Log this as a mistake</button>
+
+  <div id="reply">Your companion's reply will appear here.</div>
+  <audio id="audioPlayer" controls style="display:none;"></audio>
+</div>
+
+<script>
+const API_BASE = "/api";
+const STUDENT_ID = "student_1";
+
+async function simulateMistake() {
+  const topic = document.getElementById("topicInput").value.trim();
+  const description = document.getElementById("mistakeDescInput").value.trim();
+  if (!topic || !description) {
+    document.getElementById("reply").innerText = "Fill in both the topic above and what went wrong.";
+    return;
+  }
+  document.getElementById("reply").innerText = "Logging mistake...";
+  try {
+    const res = await fetch(`${API_BASE}/log_mistake`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ student_id: STUDENT_ID, concept: topic, description: description })
+    });
+    const data = await res.json();
+    document.getElementById("reply").innerText =
+      `Logged: struggled with "${topic}" — ${description}. Ask about it again to see it remembered.`;
+  } catch (err) {
+    document.getElementById("reply").innerText = "Error: " + err.message;
+  }
+}
+
+async function askByText() {
+  const topic = document.getElementById("topicInput").value.trim();
+  if (!topic) return;
+  document.getElementById("reply").innerText = "Thinking...";
+  try {
+    const res = await fetch(`${API_BASE}/ask?student_id=${STUDENT_ID}&topic=${encodeURIComponent(topic)}`);
+    const data = await res.json();
+    document.getElementById("reply").innerText = data.reply;
+  } catch (err) {
+    document.getElementById("reply").innerText = "Error: " + err.message;
+  }
+}
+
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+
+async function toggleRecording() {
+  const btn = document.getElementById("recordBtn");
+  if (!isRecording) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = sendVoiceQuestion;
+    mediaRecorder.start();
+    isRecording = true;
+    btn.classList.add("recording");
+    btn.innerText = "⏹ Stop recording";
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
+    btn.classList.remove("recording");
+    btn.innerText = "🎤 Hold to ask by voice";
+  }
+}
+
+async function sendVoiceQuestion() {
+  document.getElementById("reply").innerText = "Transcribing and thinking...";
+  const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+  const formData = new FormData();
+  formData.append("student_id", STUDENT_ID);
+  formData.append("audio", audioBlob, "question.wav");
+
+  try {
+    const res = await fetch(`${API_BASE}/ask_voice`, {
+      method: "POST",
+      body: formData
+    });
+    const data = await res.json();
+    document.getElementById("reply").innerText =
+      `You asked: "${data.transcribed_question}"\n\n${data.reply_text}`;
+  } catch (err) {
+    document.getElementById("reply").innerText = "Error: " + err.message;
+  }
+}
+</script>
+
+</body>
+</html>

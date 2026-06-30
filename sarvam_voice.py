@@ -28,14 +28,29 @@ def speech_to_text(audio_file_path: str, language_code: str = "unknown") -> str:
     url = f"{SARVAM_BASE_URL}/speech-to-text"
     headers = {"api-subscription-key": SARVAM_API_KEY}
 
+    mime_types = {
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".m4a": "audio/x-m4a",
+        ".ogg": "audio/ogg",
+        ".flac": "audio/flac",
+        ".aac": "audio/aac",
+        ".webm": "audio/webm",
+    }
+    ext = os.path.splitext(audio_file_path)[1].lower()
+    mime_type = mime_types.get(ext, "application/octet-stream")
+
     with open(audio_file_path, "rb") as f:
-        files = {"file": f}
+        files = {"file": (os.path.basename(audio_file_path), f, mime_type)}
         data = {
             "model": "saaras:v3",
             "language_code": language_code,
             "mode": "transcribe",
         }
         response = requests.post(url, headers=headers, files=files, data=data)
+
+    if response.status_code != 200:
+        print("SARVAM ERROR RESPONSE:", response.status_code, response.text)
 
     response.raise_for_status()
     result = response.json()

@@ -77,7 +77,7 @@ def get_all_concept_names():
         return [record["name"] for record in result]
 
 
-@app.route("/ask_voice", methods=["POST"])
+@app.route("/api/ask_voice", methods=["POST"])
 def ask_voice():
     student_id = request.form.get("student_id")
     audio_file = request.files.get("audio")
@@ -123,12 +123,12 @@ def ask_voice():
     })
 
 
-@app.route("/")
+@app.route("/api/")
 def home():
     return jsonify({"status": "ok", "message": "Learning companion API is running"})
 
 
-@app.route("/ask", methods=["GET"])
+@app.route("/api/ask", methods=["GET"])
 def ask():
     """
     Main 'wow moment' endpoint.
@@ -158,7 +158,7 @@ def ask():
     })
 
 
-@app.route("/log_mistake", methods=["POST"])
+@app.route("/api/log_mistake", methods=["POST"])
 def log_mistake():
     """
     Write-back endpoint. After a session, call this to record a new mistake.
@@ -176,7 +176,7 @@ def log_mistake():
     return jsonify({"status": "logged"})
 
 
-@app.route("/graph", methods=["GET"])
+@app.route("/api/graph", methods=["GET"])
 def graph():
     """
     Returns the full graph for a student, used to render the visual concept map.
