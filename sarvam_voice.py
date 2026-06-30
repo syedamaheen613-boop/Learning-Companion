@@ -1,3 +1,15 @@
+"""
+sarvam_voice.py
+
+Integration with Sarvam AI for speech-to-text and text-to-speech.
+This is the "voice layer" that sits on top of the Neo4j graph logic
+already working in api.py.
+
+Flow:
+  student speaks (audio file) -> Sarvam STT -> text
+  -> graph query (find_connection_to_past_mistake)
+  -> reply text -> Sarvam TTS -> audio file -> spoken back to student
+"""
 
 import os
 import requests
@@ -16,18 +28,8 @@ def speech_to_text(audio_file_path: str, language_code: str = "unknown") -> str:
     url = f"{SARVAM_BASE_URL}/speech-to-text"
     headers = {"api-subscription-key": SARVAM_API_KEY}
 
-    ext = audio_file_path.rsplit(".", 1)[-1].lower()
-    mime_types = {
-        "wav": "audio/wav",
-        "mp3": "audio/mpeg",
-        "ogg": "audio/ogg",
-        "flac": "audio/flac",
-        "webm": "audio/webm",
-    }
-    mime = mime_types.get(ext, "audio/wav")
-
     with open(audio_file_path, "rb") as f:
-        files = {"file": (f"audio.{ext}", f, mime)}
+        files = {"file": f}
         data = {
             "model": "saaras:v3",
             "language_code": language_code,
@@ -69,6 +71,29 @@ def text_to_speech(text: str, language_code: str = "en-IN", output_path: str = "
         f.write(audio_bytes)
 
     return output_path
+
+
+def translate_to_english(text: str, source_language_code: str = "auto") -> str:
+    """
+    Translates text to English using Sarvam's translation API.
+    Used so that topic-matching against English concept names works
+    even when the student asked their question in Hindi, Kannada, etc.
+    """
+    url = f"{SARVAM_BASE_URL}/translate"
+    headers = {
+        "api-subscription-key": SARVAM_API_KEY,
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "input": text,
+        "source_language_code": source_language_code,
+        "target_language_code": "en-IN",
+        "model": "mayura:v1",
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+    result = response.json()
+    return result.get("translated_text", text)
 
 
 if __name__ == "__main__":

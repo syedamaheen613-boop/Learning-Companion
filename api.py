@@ -1,13 +1,4 @@
-"""
-api.py
 
-A small Flask API that wraps the graph_memory.py logic, so a UI
-or voice pipeline (Sarvam AI) can call it over HTTP instead of
-running Python scripts manually.
-
-Run with: python api.py
-Then test with: curl "http://localhost:5000/ask?student_id=student_1&topic=Merge%20Sort"
-"""
 
 import os
 import certifi
@@ -63,7 +54,7 @@ def get_full_graph_for_student(student_id: str):
         return [dict(record) for record in result]
 
 
-from sarvam_voice import speech_to_text, text_to_speech
+from sarvam_voice import speech_to_text, text_to_speech, translate_to_english
 
 
 def extract_known_concept(text: str, known_concepts: list) -> str:
@@ -86,7 +77,7 @@ def get_all_concept_names():
         return [record["name"] for record in result]
 
 
-@app.route("/api/ask_voice", methods=["POST"])
+@app.route("/ask_voice", methods=["POST"])
 def ask_voice():
     student_id = request.form.get("student_id")
     audio_file = request.files.get("audio")
@@ -98,9 +89,10 @@ def ask_voice():
     audio_file.save(temp_input_path)
 
     transcribed_text = speech_to_text(temp_input_path)
+    translated_text = translate_to_english(transcribed_text)
 
     known_concepts = get_all_concept_names()
-    matched_topic = extract_known_concept(transcribed_text, known_concepts)
+    matched_topic = extract_known_concept(translated_text, known_concepts)
 
     if not matched_topic:
         reply_text = f"I heard: '{transcribed_text}', but I don't recognize a known topic in that yet."
@@ -121,6 +113,7 @@ def ask_voice():
 
     return jsonify({
         "transcribed_question": transcribed_text,
+        "translated_question": translated_text,
         "matched_topic": matched_topic,
         "reply_text": reply_text,
         "reply_audio_path": output_audio_path,
@@ -128,13 +121,12 @@ def ask_voice():
     })
 
 
-@app.route("/api/")
-@app.route("/api")
+@app.route("/")
 def home():
     return jsonify({"status": "ok", "message": "Learning companion API is running"})
 
 
-@app.route("/api/ask", methods=["GET"])
+@app.route("/ask", methods=["GET"])
 def ask():
     """
     Main 'wow moment' endpoint.
@@ -164,7 +156,7 @@ def ask():
     })
 
 
-@app.route("/api/log_mistake", methods=["POST"])
+@app.route("/log_mistake", methods=["POST"])
 def log_mistake():
     """
     Write-back endpoint. After a session, call this to record a new mistake.
@@ -182,7 +174,7 @@ def log_mistake():
     return jsonify({"status": "logged"})
 
 
-@app.route("/api/graph", methods=["GET"])
+@app.route("/graph", methods=["GET"])
 def graph():
     """
     Returns the full graph for a student, used to render the visual concept map.
@@ -196,17 +188,6 @@ def graph():
     return jsonify({"graph": data})
 
 
-@app.route("/api/audio", methods=["GET"])
-def serve_audio():
-    """Serve the last generated voice reply audio file."""
-    import mimetypes
-    audio_path = os.path.join(os.path.dirname(__file__), "reply_output.wav")
-    if not os.path.exists(audio_path):
-        return jsonify({"error": "No audio file found"}), 404
-    from flask import send_file
-    return send_file(audio_path, mimetype="audio/wav", as_attachment=False)
-
-
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port, debug=True)
