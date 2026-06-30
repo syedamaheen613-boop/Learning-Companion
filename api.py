@@ -66,21 +66,28 @@ def get_full_graph_for_student(student_id: str):
 from sarvam_voice import speech_to_text, text_to_speech
 
 
+def extract_known_concept(text: str, known_concepts: list) -> str:
+    """
+    Simple keyword match: checks if any known concept name appears
+    anywhere in the transcribed text (case-insensitive).
+    Returns the first match, or None if nothing matches.
+    """
+    text_lower = text.lower()
+    for concept in known_concepts:
+        if concept.lower() in text_lower:
+            return concept
+    return None
+
+
+def get_all_concept_names():
+    query = "MATCH (c:Concept) RETURN c.name AS name"
+    with driver.session() as session:
+        result = session.run(query)
+        return [record["name"] for record in result]
+
+
 @app.route("/ask_voice", methods=["POST"])
 def ask_voice():
-    """
-    The full voice loop in one endpoint:
-    1. Receives an uploaded audio file (the student's spoken question)
-    2. Transcribes it with Sarvam speech-to-text
-    3. Treats the transcribed text as the 'topic' and runs the graph query
-    4. Converts the reply to speech with Sarvam text-to-speech
-    5. Returns both the text reply and a path to the generated audio file
-
-    Usage (multipart form):
-      POST /ask_voice
-      form fields: student_id=student_1
-      file field: audio=<recorded question>.wav
-    """
     student_id = request.form.get("student_id")
     audio_file = request.files.get("audio")
 
@@ -92,22 +99,29 @@ def ask_voice():
 
     transcribed_text = speech_to_text(temp_input_path)
 
-    connections = find_connection_to_past_mistake(student_id, transcribed_text)
+    known_concepts = get_all_concept_names()
+    matched_topic = extract_known_concept(transcribed_text, known_concepts)
 
-    if connections:
-        c = connections[0]
-        reply_text = (
-            f"This connects to something you struggled with before: "
-            f"{c['connectedWeakness']} — specifically, {c['pastMistake']}."
-        )
+    if not matched_topic:
+        reply_text = f"I heard: '{transcribed_text}', but I don't recognize a known topic in that yet."
+        connections = []
     else:
-        reply_text = f"No past connection found for {transcribed_text}. This looks like a fresh topic for you."
+        connections = find_connection_to_past_mistake(student_id, matched_topic)
+        if connections:
+            c = connections[0]
+            reply_text = (
+                f"This connects to something you struggled with before: "
+                f"{c['connectedWeakness']} — specifically, {c['pastMistake']}."
+            )
+        else:
+            reply_text = f"No past connection found for {matched_topic}. This looks like a fresh topic for you."
 
     output_audio_path = "reply_output.wav"
     text_to_speech(reply_text, output_path=output_audio_path)
 
     return jsonify({
         "transcribed_question": transcribed_text,
+        "matched_topic": matched_topic,
         "reply_text": reply_text,
         "reply_audio_path": output_audio_path,
         "connections": connections
