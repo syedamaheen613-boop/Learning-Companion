@@ -1,4 +1,13 @@
+"""
+api.py
 
+A small Flask API that wraps the graph_memory.py logic, so a UI
+or voice pipeline (Sarvam AI) can call it over HTTP instead of
+running Python scripts manually.
+
+Run with: python api.py
+Then test with: curl "http://localhost:5000/ask?student_id=student_1&topic=Merge%20Sort"
+"""
 
 import os
 import certifi
@@ -20,14 +29,25 @@ driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
 
 
 def find_connection_to_past_mistake(student_id: str, new_concept_name: str):
-    query = """
+    # Case 1: a direct past mistake on this exact topic
+    direct_query = """
+    MATCH (s:Student {id:$student_id})-[:MADE]->(m:Mistake)-[:ABOUT]->(c:Concept {name:$new_concept_name})
+    RETURN c.name AS newTopic, c.name AS connectedWeakness, m.description AS pastMistake
+    """
+    # Case 2: this topic depends on a different concept the student struggled with
+    indirect_query = """
     MATCH (s:Student {id:$student_id})-[:MADE]->(m:Mistake)-[:ABOUT]->(weak:Concept)
     MATCH (new:Concept {name:$new_concept_name})-[:DEPENDS_ON*1..3]->(weak)
     RETURN new.name AS newTopic, weak.name AS connectedWeakness, m.description AS pastMistake
     """
     with driver.session() as session:
-        result = session.run(query, student_id=student_id, new_concept_name=new_concept_name)
-        return [dict(record) for record in result]
+        direct_results = session.run(direct_query, student_id=student_id, new_concept_name=new_concept_name)
+        direct_list = [dict(record) for record in direct_results]
+        if direct_list:
+            return direct_list
+
+        indirect_results = session.run(indirect_query, student_id=student_id, new_concept_name=new_concept_name)
+        return [dict(record) for record in indirect_results]
 
 
 def log_new_mistake(student_id: str, concept_name: str, description: str):
@@ -77,7 +97,7 @@ def get_all_concept_names():
         return [record["name"] for record in result]
 
 
-@app.route("/api/ask_voice", methods=["POST"])
+@app.route("/ask_voice", methods=["POST"])
 def ask_voice():
     student_id = request.form.get("student_id")
     audio_file = request.files.get("audio")
@@ -123,12 +143,12 @@ def ask_voice():
     })
 
 
-@app.route("/api/")
+@app.route("/")
 def home():
     return jsonify({"status": "ok", "message": "Learning companion API is running"})
 
 
-@app.route("/api/ask", methods=["GET"])
+@app.route("/ask", methods=["GET"])
 def ask():
     """
     Main 'wow moment' endpoint.
@@ -158,7 +178,7 @@ def ask():
     })
 
 
-@app.route("/api/log_mistake", methods=["POST"])
+@app.route("/log_mistake", methods=["POST"])
 def log_mistake():
     """
     Write-back endpoint. After a session, call this to record a new mistake.
@@ -176,7 +196,7 @@ def log_mistake():
     return jsonify({"status": "logged"})
 
 
-@app.route("/api/graph", methods=["GET"])
+@app.route("/graph", methods=["GET"])
 def graph():
     """
     Returns the full graph for a student, used to render the visual concept map.
@@ -191,5 +211,4 @@ def graph():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
