@@ -6,7 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
+export interface LogResult {
   status: string;
-  message?: string;
 }

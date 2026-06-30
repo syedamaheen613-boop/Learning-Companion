@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Learning Companion API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: learning
+    description: Learning companion operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,88 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /ask:
+    get:
+      operationId: getWowMoment
+      tags: [learning]
+      summary: Get wow moment connection
+      description: Finds connections between a new topic and a student's past mistakes
+      parameters:
+        - name: student_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: topic
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Wow moment result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WowMomentResult"
+        "400":
+          description: Missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /log_mistake:
+    post:
+      operationId: logMistake
+      tags: [learning]
+      summary: Log a student mistake
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MistakeInput"
+      responses:
+        "200":
+          description: Mistake logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogResult"
+        "400":
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph:
+    get:
+      operationId: getStudentGraph
+      tags: [learning]
+      summary: Get full concept graph for a student
+      parameters:
+        - name: student_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Student graph data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphResponse"
+        "400":
+          description: Missing student_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +115,89 @@ components:
       properties:
         status:
           type: string
+        message:
+          type: string
       required:
         - status
 
+    Connection:
+      type: object
+      properties:
+        newTopic:
+          type: string
+        connectedWeakness:
+          type: string
+        pastMistake:
+          type: string
+      required:
+        - newTopic
+        - connectedWeakness
+        - pastMistake
+
+    WowMomentResult:
+      type: object
+      properties:
+        topic:
+          type: string
+        reply:
+          type: string
+        connections:
+          type: array
+          items:
+            $ref: "#/components/schemas/Connection"
+      required:
+        - topic
+        - reply
+        - connections
+
+    MistakeInput:
+      type: object
+      properties:
+        student_id:
+          type: string
+        concept:
+          type: string
+        description:
+          type: string
+      required:
+        - student_id
+        - concept
+        - description
+
+    LogResult:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    GraphNode:
+      type: object
+      properties:
+        student:
+          type: ["string", "null"]
+        mistake:
+          type: ["string", "null"]
+        concept:
+          type: ["string", "null"]
+        dependsOn:
+          type: ["string", "null"]
+
+    GraphResponse:
+      type: object
+      properties:
+        graph:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+      required:
+        - graph
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-  message?: string;
+export interface MistakeInput {
+  student_id: string;
+  concept: string;
+  description: string;
 }

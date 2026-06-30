@@ -5,8 +5,8 @@
  * Learning Companion API
  * OpenAPI spec version: 0.1.0
  */
+import type { GraphNode } from './graphNode';
 
-export interface HealthStatus {
-  status: string;
-  message?: string;
+export interface GraphResponse {
+  graph: GraphNode[];
 }

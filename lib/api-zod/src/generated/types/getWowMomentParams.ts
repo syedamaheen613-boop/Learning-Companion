@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-  message?: string;
-}
+export type GetWowMomentParams = {
+student_id: string;
+topic: string;
+};

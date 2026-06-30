@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Learning Companion Demo"
+version = "1.0.0"
+id = "artifacts/demo-ui"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24027
+
+[services.development]
+run = "pnpm --filter @workspace/demo-ui run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/demo-ui", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/demo-ui/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24027"
+BASE_PATH = "/"

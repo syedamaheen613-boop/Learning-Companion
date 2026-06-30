@@ -196,6 +196,17 @@ def graph():
     return jsonify({"graph": data})
 
 
+@app.route("/api/audio", methods=["GET"])
+def serve_audio():
+    """Serve the last generated voice reply audio file."""
+    import mimetypes
+    audio_path = os.path.join(os.path.dirname(__file__), "reply_output.wav")
+    if not os.path.exists(audio_path):
+        return jsonify({"error": "No audio file found"}), 404
+    from flask import send_file
+    return send_file(audio_path, mimetype="audio/wav", as_attachment=False)
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     app.run(host="0.0.0.0", port=port, debug=True)
