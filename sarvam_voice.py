@@ -16,8 +16,18 @@ def speech_to_text(audio_file_path: str, language_code: str = "unknown") -> str:
     url = f"{SARVAM_BASE_URL}/speech-to-text"
     headers = {"api-subscription-key": SARVAM_API_KEY}
 
+    ext = audio_file_path.rsplit(".", 1)[-1].lower()
+    mime_types = {
+        "wav": "audio/wav",
+        "mp3": "audio/mpeg",
+        "ogg": "audio/ogg",
+        "flac": "audio/flac",
+        "webm": "audio/webm",
+    }
+    mime = mime_types.get(ext, "audio/wav")
+
     with open(audio_file_path, "rb") as f:
-        files = {"file": f}
+        files = {"file": (f"audio.{ext}", f, mime)}
         data = {
             "model": "saaras:v3",
             "language_code": language_code,
