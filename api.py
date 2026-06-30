@@ -85,7 +85,9 @@ def ask_voice():
     if not student_id or not audio_file:
         return jsonify({"error": "student_id and an audio file are required"}), 400
 
-    temp_input_path = "temp_question.wav"
+    original_filename = audio_file.filename or "question.wav"
+    file_extension = os.path.splitext(original_filename)[1] or ".wav"
+    temp_input_path = f"temp_question{file_extension}"
     audio_file.save(temp_input_path)
 
     transcribed_text = speech_to_text(temp_input_path)
