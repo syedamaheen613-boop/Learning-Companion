@@ -63,6 +63,57 @@ def get_full_graph_for_student(student_id: str):
         return [dict(record) for record in result]
 
 
+from sarvam_voice import speech_to_text, text_to_speech
+
+
+@app.route("/ask_voice", methods=["POST"])
+def ask_voice():
+    """
+    The full voice loop in one endpoint:
+    1. Receives an uploaded audio file (the student's spoken question)
+    2. Transcribes it with Sarvam speech-to-text
+    3. Treats the transcribed text as the 'topic' and runs the graph query
+    4. Converts the reply to speech with Sarvam text-to-speech
+    5. Returns both the text reply and a path to the generated audio file
+
+    Usage (multipart form):
+      POST /ask_voice
+      form fields: student_id=student_1
+      file field: audio=<recorded question>.wav
+    """
+    student_id = request.form.get("student_id")
+    audio_file = request.files.get("audio")
+
+    if not student_id or not audio_file:
+        return jsonify({"error": "student_id and an audio file are required"}), 400
+
+    temp_input_path = "temp_question.wav"
+    audio_file.save(temp_input_path)
+
+    transcribed_text = speech_to_text(temp_input_path)
+
+    connections = find_connection_to_past_mistake(student_id, transcribed_text)
+
+    if connections:
+        c = connections[0]
+        reply_text = (
+            f"This connects to something you struggled with before: "
+            f"{c['connectedWeakness']} — specifically, {c['pastMistake']}."
+        )
+    else:
+        reply_text = f"No past connection found for {transcribed_text}. This looks like a fresh topic for you."
+
+    output_audio_path = "reply_output.wav"
+    text_to_speech(reply_text, output_path=output_audio_path)
+
+    return jsonify({
+        "transcribed_question": transcribed_text,
+        "reply_text": reply_text,
+        "reply_audio_path": output_audio_path,
+        "connections": connections
+    })
+
+
 @app.route("/")
 def home():
     return jsonify({"status": "ok", "message": "Learning companion API is running"})
