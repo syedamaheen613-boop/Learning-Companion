@@ -12,6 +12,7 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 from flask import Flask, request, jsonify, send_file
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
+from llm_tutor import ask_claude
 
 load_dotenv()
 
@@ -151,12 +152,7 @@ def ask():
         return jsonify({"error": "student_id and topic are required"}), 400
 
     connections = find_connection_to_past_mistake(student_id, topic)
-    if connections:
-        c     = connections[0]
-        reply = (f"This connects to something you struggled with before: "
-                 f"{c['connectedWeakness']} — specifically, {c['pastMistake']}.")
-    else:
-        reply = f"No past connection found for {topic}. This looks like a fresh topic for you."
+    reply = ask_claude(topic, connections[0] if connections else None)
 
     return jsonify({"topic": topic, "reply": reply, "connections": connections})
 
