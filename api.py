@@ -152,7 +152,17 @@ def ask():
         return jsonify({"error": "student_id and topic are required"}), 400
 
     connections = find_connection_to_past_mistake(student_id, topic)
-    reply = ask_claude(topic, connections[0] if connections else None)
+    try:
+        reply = ask_claude(topic, connections[0] if connections else None)
+    except Exception:
+        if connections:
+            c = connections[0]
+            reply = (f"{topic} connects to your past struggle with "
+                     f"{c['connectedWeakness']}: \"{c['pastMistake']}\". "
+                     f"Revisit that concept to strengthen your understanding of {topic}.")
+        else:
+            reply = (f"{topic} is a fresh topic for you — great time to build strong foundations. "
+                     f"Start with a concrete example and work through it step by step.")
 
     return jsonify({"topic": topic, "reply": reply, "connections": connections})
 
@@ -164,36 +174,38 @@ def ask_voice():
     if not student_id or not audio_file:
         return jsonify({"error": "student_id and an audio file are required"}), 400
 
-    ext              = os.path.splitext(audio_file.filename or "q.wav")[1] or ".wav"
-    temp_input_path  = f"temp_question{ext}"
-    audio_file.save(temp_input_path)
+    try:
+        ext              = os.path.splitext(audio_file.filename or "q.wav")[1] or ".wav"
+        temp_input_path  = f"temp_question{ext}"
+        audio_file.save(temp_input_path)
 
-    transcribed_text = speech_to_text(temp_input_path)
-    translated_text  = translate_to_english(transcribed_text)
-    matched_topic    = extract_known_concept(translated_text, get_all_concept_names())
+        transcribed_text = speech_to_text(temp_input_path)
+        translated_text  = translate_to_english(transcribed_text)
+        matched_topic    = extract_known_concept(translated_text, get_all_concept_names())
 
-    if not matched_topic:
-        reply_text  = f"I heard: '{transcribed_text}', but I don't recognise a known topic yet."
-        connections = []
-    else:
-        connections = find_connection_to_past_mistake(student_id, matched_topic)
-        if connections:
-            c          = connections[0]
-            reply_text = (f"This connects to something you struggled with before: "
-                          f"{c['connectedWeakness']} — specifically, {c['pastMistake']}.")
+        if not matched_topic:
+            reply_text  = f"I heard: '{transcribed_text}', but I don't recognise a known topic yet. Try asking about one of your study concepts."
+            connections = []
         else:
-            reply_text = f"No past connection found for {matched_topic}. Fresh topic for you."
+            connections = find_connection_to_past_mistake(student_id, matched_topic)
+            reply_text  = ask_claude(matched_topic, connections[0] if connections else None)
 
-    text_to_speech(reply_text, output_path="reply_output.wav")
+        try:
+            text_to_speech(reply_text, output_path="reply_output.wav")
+        except Exception as tts_err:
+            print(f"TTS failed (non-fatal): {tts_err}")
 
-    return jsonify({
-        "transcribed_question": transcribed_text,
-        "translated_question":  translated_text,
-        "matched_topic":        matched_topic,
-        "reply_text":           reply_text,
-        "reply_audio_path":     "reply_output.wav",
-        "connections":          connections,
-    })
+        return jsonify({
+            "transcribed_question": transcribed_text,
+            "translated_question":  translated_text,
+            "matched_topic":        matched_topic,
+            "reply_text":           reply_text,
+            "reply_audio_path":     "reply_output.wav",
+            "connections":          connections,
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e), "transcribed_question": "", "reply_text": f"Processing error: {e}"}), 500
 
 
 @app.route("/api/audio", methods=["GET"])

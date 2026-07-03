@@ -72,16 +72,16 @@ export function StudyPlan() {
 
       {planData && !loading && (
         <div className="space-y-6">
-          {(!planData.plan || planData.plan.length === 0) ? (
+          {(!planData.study_plan || planData.study_plan.length === 0) ? (
             <div className="text-center py-20 text-slate-500 font-mono uppercase tracking-widest border border-white/5 bg-white/5 rounded-xl">
               No recommended study plan available. Structural integrity optimal.
             </div>
           ) : (
             <div className="flex flex-col gap-6">
-              {planData.plan.map((item: any, idx: number) => {
+              {planData.study_plan.map((item: any, idx: number) => {
                 let effortColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/50";
-                if (item.effort === "MEDIUM") effortColor = "bg-amber-500/20 text-amber-400 border-amber-500/50";
-                if (item.effort === "HIGH") effortColor = "bg-red-500/20 text-red-400 border-red-500/50";
+                if (item.effort === "medium" || item.effort === "MEDIUM") effortColor = "bg-amber-500/20 text-amber-400 border-amber-500/50";
+                if (item.effort === "high" || item.effort === "HIGH") effortColor = "bg-red-500/20 text-red-400 border-red-500/50";
 
                 return (
                   <motion.div

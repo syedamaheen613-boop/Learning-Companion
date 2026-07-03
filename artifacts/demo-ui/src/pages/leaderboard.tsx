@@ -163,7 +163,7 @@ export function Leaderboard() {
                           {user.streak} <Flame className="w-3 h-3 inline text-amber-500 mb-0.5" />
                         </td>
                         <td className="px-6 py-4 text-right text-slate-300">
-                          {user.concepts}
+                          {user.concept_count ?? 0}
                         </td>
                       </tr>
                     );
