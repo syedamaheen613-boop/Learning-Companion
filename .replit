@@ -23,8 +23,8 @@ timeoutMs = 20000
 
 [userenv.shared]
 
-[[ports]]
-localPort = 5000
-
 [nix]
 packages = ["psmisc"]
+
+[[ports]]
+localPort = 5000
