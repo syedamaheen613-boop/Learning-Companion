@@ -24,7 +24,7 @@ timeoutMs = 20000
 [userenv.shared]
 
 [nix]
-packages = ["psmisc"]
+packages = ["psmisc", "nano"]
 
 [[ports]]
 localPort = 8000
@@ -35,3 +35,11 @@ localPort = 24027
 
 [[ports]]
 localPort = 8081
+
+[[ports]]
+localPort = 24027
+externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
