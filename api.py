@@ -139,6 +139,10 @@ def extract_known_concept(text: str, known_concepts: list):
 
 # ── routes ────────────────────────────────────────────────────────────────────
 
+@app.route("/api/healthz")
+def healthz():
+    return jsonify({"status": "ok"})
+
 @app.route("/api/")
 def home():
     return jsonify({"status": "ok", "message": "Learning companion API is running"})
