@@ -1,6 +1,7 @@
 modules = ["nodejs-24", "python-3.11"]
 
 [deployment]
+router = "application"
 deploymentTarget = "autoscale"
 
 [deployment.postBuild]
@@ -26,8 +27,11 @@ timeoutMs = 20000
 packages = ["psmisc"]
 
 [[ports]]
-localPort = 5000
-
-[[ports]]
 localPort = 8000
 externalPort = 80
+
+[[ports]]
+localPort = 24027
+
+[[ports]]
+localPort = 8081
