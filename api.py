@@ -4,15 +4,20 @@ api.py — Learning Companion Flask API
 
 import os
 import random
+import uuid
 from datetime import date, timedelta
 
 import certifi
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
 from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
-from llm_tutor import ask_claude
+from llm_tutor import (
+    ask_claude, generate_challenge_questions,
+    get_hint, get_correct_answer, evaluate_answer
+)
 
 load_dotenv()
 
@@ -21,13 +26,13 @@ USER     = os.getenv("NEO4J_USER")
 PASSWORD = os.getenv("NEO4J_PASSWORD")
 
 app    = Flask(__name__)
+CORS(app)
 driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
 
 
 # ── core graph helpers ────────────────────────────────────────────────────────
 
 def find_connection_to_past_mistake(student_id: str, new_concept_name: str):
-    """Check direct mistake first, fall back to dependency traversal."""
     direct_query = """
     MATCH (s:Student {id:$student_id})-[:MADE]->(m:Mistake)-[:ABOUT]->(c:Concept {name:$new_concept_name})
     RETURN c.name AS newTopic, c.name AS connectedWeakness, m.description AS pastMistake
@@ -45,15 +50,16 @@ def find_connection_to_past_mistake(student_id: str, new_concept_name: str):
 
 
 def log_new_mistake(student_id: str, concept_name: str, description: str):
-    query = """
-    MATCH (s:Student {id:$student_id})
-    MATCH (c:Concept {name:$concept_name})
-    CREATE (m:Mistake {description:$description, date: date()})
-    CREATE (s)-[:MADE]->(m)
-    CREATE (m)-[:ABOUT]->(c)
-    """
+    # Ensure concept exists
     with driver.session() as session:
-        session.run(query, student_id=student_id, concept_name=concept_name, description=description)
+        session.run("MERGE (c:Concept {name: $name})", name=concept_name)
+        session.run("""
+            MATCH (s:Student {id:$student_id})
+            MATCH (c:Concept {name:$concept_name})
+            CREATE (m:Mistake {description:$description, date: date()})
+            CREATE (s)-[:MADE]->(m)
+            CREATE (m)-[:ABOUT]->(c)
+        """, student_id=student_id, concept_name=concept_name, description=description)
 
 
 def get_full_graph_for_student(student_id: str):
@@ -79,6 +85,7 @@ def compute_xp(mistake_count: int, concept_count: int) -> int:
 
 
 def compute_streak(dates: list) -> int:
+    """Count consecutive-day streak. Allows streak from yesterday (still active today)."""
     parsed = set()
     for d in dates:
         if d:
@@ -88,39 +95,33 @@ def compute_streak(dates: list) -> int:
                 pass
     if not parsed:
         return 0
-    streak, current = 0, date.today()
+
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+
+    # Start counting from today if active today, else from yesterday
+    if today in parsed:
+        start = today
+    elif yesterday in parsed:
+        start = yesterday
+    else:
+        return 0
+
+    streak, current = 0, start
     while current in parsed:
         streak += 1
         current -= timedelta(days=1)
     return streak
 
 
-CHALLENGE_TEMPLATES = {
-    "Recursion": [
-        ("What are the two essential parts of every recursive function?",
-         ["base case", "recursive case", "termination"]),
-        ("What happens when a recursive function has no base case?",
-         ["infinite", "stack overflow", "never terminates", "forever"]),
-    ],
-    "Arrays": [
-        ("What is the index of the first element in an array?", ["0", "zero"]),
-        ("What error occurs when you access an index beyond the array length?",
-         ["out of bounds", "index error"]),
-    ],
-    "Merge Sort": [
-        ("What is the time complexity of Merge Sort?", ["n log n", "nlogn", "O(n log n)"]),
-        ("What algorithmic paradigm does Merge Sort use?",
-         ["divide and conquer", "divide", "recursive"]),
-    ],
-}
-
 BADGES = [
-    {"id": "first_step",     "name": "First Step",     "description": "Logged your first mistake",     "icon": "🚀", "threshold": {"mistakes": 1}},
-    {"id": "mistake_logger", "name": "Mistake Logger",  "description": "Logged 3 mistakes",            "icon": "📝", "threshold": {"mistakes": 3}},
-    {"id": "deep_learner",   "name": "Deep Learner",    "description": "Logged 10 mistakes",           "icon": "🧠", "threshold": {"mistakes": 10}},
-    {"id": "multi_concept",  "name": "Multi-Concept",   "description": "Struggled with 3+ concepts",   "icon": "🗺️", "threshold": {"concepts": 3}},
-    {"id": "scholar",        "name": "Scholar",         "description": "Earned 100 XP",                "icon": "🎓", "threshold": {"xp": 100}},
-    {"id": "streak_3",       "name": "On a Roll",       "description": "3-day study streak",           "icon": "🔥", "threshold": {"streak": 3}},
+    {"id": "first_step",     "name": "First Step",     "description": "Logged your first mistake",   "icon": "🚀", "threshold": {"mistakes": 1}},
+    {"id": "mistake_logger", "name": "Mistake Logger",  "description": "Logged 3 mistakes",          "icon": "📝", "threshold": {"mistakes": 3}},
+    {"id": "deep_learner",   "name": "Deep Learner",    "description": "Logged 10 mistakes",         "icon": "🧠", "threshold": {"mistakes": 10}},
+    {"id": "multi_concept",  "name": "Multi-Concept",   "description": "Struggled with 3+ concepts", "icon": "🗺️", "threshold": {"concepts": 3}},
+    {"id": "scholar",        "name": "Scholar",         "description": "Earned 100 XP",              "icon": "🎓", "threshold": {"xp": 100}},
+    {"id": "streak_3",       "name": "On a Roll",       "description": "3-day study streak",         "icon": "🔥", "threshold": {"streak": 3}},
+    {"id": "streak_7",       "name": "Week Warrior",    "description": "7-day study streak",         "icon": "⚡", "threshold": {"streak": 7}},
 ]
 
 
@@ -148,6 +149,40 @@ def home():
     return jsonify({"status": "ok", "message": "Learning companion API is running"})
 
 
+# ── student management ────────────────────────────────────────────────────────
+
+@app.route("/api/students", methods=["GET"])
+def list_students():
+    with driver.session() as session:
+        rows = [{"id": r["id"], "name": r["name"]} for r in session.run(
+            "MATCH (s:Student) RETURN s.id AS id, s.name AS name ORDER BY s.name"
+        )]
+    return jsonify({"students": rows})
+
+
+@app.route("/api/create_student", methods=["POST"])
+def create_student():
+    data = request.get_json() or {}
+    name       = data.get("name", "").strip()
+    student_id = data.get("student_id", "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    if not student_id:
+        # auto-generate from name
+        student_id = name.lower().replace(" ", "_") + "_" + str(uuid.uuid4())[:4]
+    # Sanitise
+    student_id = student_id.lower().replace(" ", "_")
+    with driver.session() as session:
+        session.run("""
+            MERGE (s:Student {id: $sid})
+            ON CREATE SET s.name = $name
+            ON MATCH  SET s.name = $name
+        """, sid=student_id, name=name)
+    return jsonify({"status": "created", "student_id": student_id, "name": name})
+
+
+# ── ask (text) ────────────────────────────────────────────────────────────────
+
 @app.route("/api/ask", methods=["GET"])
 def ask():
     student_id = request.args.get("student_id")
@@ -159,52 +194,72 @@ def ask():
     try:
         reply = ask_claude(topic, connections[0] if connections else None)
     except Exception:
-        if connections:
-            c = connections[0]
-            reply = (f"{topic} connects to your past struggle with "
-                     f"{c['connectedWeakness']}: \"{c['pastMistake']}\". "
-                     f"Revisit that concept to strengthen your understanding of {topic}.")
-        else:
-            reply = (f"{topic} is a fresh topic for you — great time to build strong foundations. "
-                     f"Start with a concrete example and work through it step by step.")
+        reply = ask_claude(topic)  # knowledge-base fallback
 
     return jsonify({"topic": topic, "reply": reply, "connections": connections})
 
+
+# ── voice ─────────────────────────────────────────────────────────────────────
 
 @app.route("/api/ask_voice", methods=["POST"])
 def ask_voice():
     student_id = request.form.get("student_id")
     audio_file = request.files.get("audio")
     if not student_id or not audio_file:
-        return jsonify({"error": "student_id and an audio file are required"}), 400
+        return jsonify({"error": "student_id and audio are required"}), 400
 
     try:
-        ext              = os.path.splitext(audio_file.filename or "q.wav")[1] or ".wav"
-        temp_input_path  = f"temp_question{ext}"
+        ext             = os.path.splitext(audio_file.filename or "q.webm")[1] or ".webm"
+        temp_input_path = f"temp_question_{uuid.uuid4().hex}{ext}"
         audio_file.save(temp_input_path)
 
-        transcribed_text = speech_to_text(temp_input_path)
-        translated_text  = translate_to_english(transcribed_text)
-        matched_topic    = extract_known_concept(translated_text, get_all_concept_names())
+        # STT
+        try:
+            transcribed_text = speech_to_text(temp_input_path)
+        except Exception as stt_err:
+            os.remove(temp_input_path)
+            return jsonify({"error": f"Speech recognition failed: {stt_err}. Please speak clearly and try again."}), 500
+
+        # Translation (best-effort)
+        try:
+            translated_text = translate_to_english(transcribed_text)
+        except Exception:
+            translated_text = transcribed_text
+
+        # Topic matching
+        matched_topic = extract_known_concept(translated_text, get_all_concept_names())
 
         if not matched_topic:
-            reply_text  = f"I heard: '{transcribed_text}', but I don't recognise a known topic yet. Try asking about one of your study concepts."
+            reply_text  = (
+                f"I heard you say: '{transcribed_text}'. "
+                f"I couldn't match that to a specific topic in your knowledge graph. "
+                f"Try asking about one of your study concepts like Recursion, Arrays, or Merge Sort."
+            )
             connections = []
         else:
             connections = find_connection_to_past_mistake(student_id, matched_topic)
             reply_text  = ask_claude(matched_topic, connections[0] if connections else None)
 
+        # TTS (best-effort — don't fail the whole request if TTS breaks)
+        tts_ok = False
         try:
             text_to_speech(reply_text, output_path="reply_output.wav")
+            tts_ok = True
         except Exception as tts_err:
             print(f"TTS failed (non-fatal): {tts_err}")
+
+        # Cleanup
+        try:
+            os.remove(temp_input_path)
+        except Exception:
+            pass
 
         return jsonify({
             "transcribed_question": transcribed_text,
             "translated_question":  translated_text,
             "matched_topic":        matched_topic,
             "reply_text":           reply_text,
-            "reply_audio_path":     "reply_output.wav",
+            "reply_audio_path":     "reply_output.wav" if tts_ok else None,
             "connections":          connections,
         })
 
@@ -220,9 +275,11 @@ def serve_audio():
     return send_file(audio_path, mimetype="audio/wav", as_attachment=False)
 
 
+# ── mistake logging ───────────────────────────────────────────────────────────
+
 @app.route("/api/log_mistake", methods=["POST"])
 def log_mistake():
-    data        = request.get_json()
+    data        = request.get_json() or {}
     student_id  = data.get("student_id")
     concept     = data.get("concept")
     description = data.get("description")
@@ -232,6 +289,8 @@ def log_mistake():
     return jsonify({"status": "logged"})
 
 
+# ── graph ─────────────────────────────────────────────────────────────────────
+
 @app.route("/api/graph", methods=["GET"])
 def graph():
     student_id = request.args.get("student_id")
@@ -240,7 +299,7 @@ def graph():
     return jsonify({"graph": get_full_graph_for_student(student_id)})
 
 
-# ── new feature routes ────────────────────────────────────────────────────────
+# ── dashboard ─────────────────────────────────────────────────────────────────
 
 @app.route("/api/dashboard", methods=["GET"])
 def dashboard():
@@ -273,7 +332,7 @@ def dashboard():
 
     mastery = [
         {"concept": c, "mistake_count": len(ms),
-         "status": "struggling" if len(ms) >= 2 else "needs_review"}
+         "status": "struggling" if len(ms) >= 3 else "needs_review" if len(ms) >= 1 else "mastered"}
         for c, ms in concept_map.items()
     ]
     recent = sorted(
@@ -282,16 +341,18 @@ def dashboard():
     )[:5]
 
     return jsonify({
-        "student_id":     row["student_id"],
-        "name":           row["name"] or student_id,
-        "xp":             xp,
-        "streak":         streak,
-        "mistake_count":  row["mistake_count"],
-        "concept_count":  row["concept_count"],
-        "mastery":        mastery,
+        "student_id":      row["student_id"],
+        "name":            row["name"] or student_id,
+        "xp":              xp,
+        "streak":          streak,
+        "mistake_count":   row["mistake_count"],
+        "concept_count":   row["concept_count"],
+        "mastery":         mastery,
         "recent_activity": recent,
     })
 
+
+# ── leaderboard ───────────────────────────────────────────────────────────────
 
 @app.route("/api/leaderboard", methods=["GET"])
 def leaderboard():
@@ -322,6 +383,8 @@ def leaderboard():
     return jsonify({"leaderboard": rows})
 
 
+# ── study plan ────────────────────────────────────────────────────────────────
+
 @app.route("/api/study_plan", methods=["GET"])
 def study_plan():
     student_id = request.args.get("student_id")
@@ -341,20 +404,26 @@ def study_plan():
             deps   = [d for d in r["dependencies"] if d]
             effort = "high" if len(deps) >= 3 else "medium" if deps else "low"
             plan.append({
-                "rank":          len(plan) + 1,
-                "concept":       r["concept"],
-                "mistake_count": r["mistake_count"],
-                "effort":        effort,
+                "rank":           len(plan) + 1,
+                "concept":        r["concept"],
+                "mistake_count":  r["mistake_count"],
+                "effort":         effort,
                 "sample_mistake": r["sample_mistake"],
-                "dependencies":  deps,
+                "dependencies":   deps,
             })
 
     return jsonify({"study_plan": plan, "student_id": student_id})
 
 
+# ── challenge mode ────────────────────────────────────────────────────────────
+
 @app.route("/api/challenge", methods=["GET"])
 def challenge():
     student_id = request.args.get("student_id")
+    try:
+        count = min(10, max(3, int(request.args.get("count", 5))))
+    except (TypeError, ValueError):
+        count = 5
     if not student_id:
         return jsonify({"error": "student_id is required"}), 400
 
@@ -366,37 +435,57 @@ def challenge():
         """, sid=student_id)]
 
     if not concepts:
-        return jsonify({"error": "No weak concepts found for this student"}), 404
+        return jsonify({"error": "No weak concepts found. Log some mistakes first!"}), 404
 
-    concept   = random.choice(concepts[:min(3, len(concepts))])
-    templates = CHALLENGE_TEMPLATES.get(concept, [])
-    question  = random.choice(templates)[0] if templates else f"Explain the key idea behind {concept} in one sentence."
+    # Round-robin generation across top weak concepts to guarantee exactly `count` questions.
+    top_concepts = concepts[:min(3, len(concepts))]
+    all_questions: list[dict] = []
+    idx = 0
+    while len(all_questions) < count:
+        concept = top_concepts[idx % len(top_concepts)]
+        # Fetch one extra question per concept per round (avoids generating tiny batches)
+        batch_size = max(2, count // len(top_concepts) + 1)
+        if len(all_questions) == 0 or concept != all_questions[-1].get("concept"):
+            qs = generate_challenge_questions(concept, batch_size)
+            all_questions.extend(qs)
+        idx += 1
+        if idx > count * len(top_concepts):  # safety valve
+            break
 
-    return jsonify({"concept": concept, "question": question, "student_id": student_id})
+    random.shuffle(all_questions)
+    questions = all_questions[:count]
+    for i, q in enumerate(questions):
+        q["id"] = i
+
+    return jsonify({"questions": questions, "student_id": student_id, "total": len(questions)})
+
+
+@app.route("/api/challenge/hint", methods=["POST"])
+def challenge_hint():
+    data     = request.get_json() or {}
+    question = data.get("question", "")
+    concept  = data.get("concept", "")
+    if not question:
+        return jsonify({"error": "question is required"}), 400
+    hint = get_hint(question, concept)
+    return jsonify({"hint": hint})
 
 
 @app.route("/api/challenge/submit", methods=["POST"])
 def challenge_submit():
-    data    = request.get_json()
-    concept = data.get("concept", "")
-    answer  = data.get("answer", "")
+    data     = request.get_json() or {}
+    concept  = data.get("concept", "")
+    question = data.get("question", "")
+    answer   = data.get("answer", "")
     if not answer:
         return jsonify({"error": "answer is required"}), 400
 
-    keywords = [kw for _, kws in CHALLENGE_TEMPLATES.get(concept, []) for kw in kws] or [concept.lower()]
-    matched  = [kw for kw in keywords if kw.lower() in answer.lower()]
-    score    = min(100, int(len(matched) / max(len(keywords), 1) * 100))
-    passed   = score >= 70
+    result = evaluate_answer(question, concept, answer)
+    result["concept"] = concept
+    return jsonify(result)
 
-    if passed:
-        feedback = f"Correct! You demonstrated solid understanding of {concept}."
-    elif score >= 30:
-        feedback = f"Partially correct. Key ideas to review: {', '.join(set(keywords))}."
-    else:
-        feedback = f"Not quite. Revisit {concept}, focusing on: {', '.join(set(keywords))}."
 
-    return jsonify({"score": score, "passed": passed, "feedback": feedback, "concept": concept})
-
+# ── badges ────────────────────────────────────────────────────────────────────
 
 @app.route("/api/badges", methods=["GET"])
 def badges():

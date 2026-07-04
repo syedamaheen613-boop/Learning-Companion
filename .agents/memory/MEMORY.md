@@ -1,0 +1,5 @@
+- [Sarvam STT audio format](sarvam-audio.md) — browser WebM rejected; must ffmpeg-convert to 16kHz mono WAV before sending to Sarvam STT.
+- [Challenge batch generation](challenge-batch.md) — round-robin across weak concepts to guarantee exactly N questions; per-concept floor alone under-generates.
+- [LLM fallback knowledge base](llm-fallback.md) — Anthropic key has zero credits; rich KB in llm_tutor.py covers 10+ CS topics with real answers/hints/questions.
+- [Flask CORS](flask-cors.md) — flask-cors must be installed and CORS(app) applied; otherwise browser preflight requests fail in production.
+- [Streak computation](streak-fix.md) — start streak from today OR yesterday (not today only) so students don't lose streaks when they log in without a new entry.
