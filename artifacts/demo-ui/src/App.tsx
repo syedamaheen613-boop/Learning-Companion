@@ -1,16 +1,18 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Route, Switch, Router as WouterRouter, Redirect } from 'wouter';
-import { Layout } from './components/layout';
-import { Dashboard } from './pages/dashboard';
-import { Challenge } from './pages/challenge';
-import { StudyPlan } from './pages/study-plan';
-import { Badges } from './pages/badges';
-import { Leaderboard } from './pages/leaderboard';
-import { VoiceChat } from './pages/voice-chat';
-import { DemoStage } from './pages/demo';
-import { ConceptMap } from './pages/graph';
-import { LogMistake } from './pages/log';
-import NotFound from '@/pages/not-found';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Route, Switch, Router as WouterRouter, Redirect } from "wouter";
+import { Layout } from "./components/layout";
+import { Dashboard } from "./pages/dashboard";
+import { Challenge } from "./pages/challenge";
+import { StudyPlan } from "./pages/study-plan";
+import { Badges } from "./pages/badges";
+import { Leaderboard } from "./pages/leaderboard";
+import { VoiceChat } from "./pages/voice-chat";
+import { DemoStage } from "./pages/demo";
+import { ConceptMap } from "./pages/graph";
+import { LogMistake } from "./pages/log";
+import { Login } from "./pages/login";
+import { UserProvider, useUser } from "./lib/userContext";
+import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +24,12 @@ const queryClient = new QueryClient({
 });
 
 function Router() {
+  const { user } = useUser();
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <Layout>
       <Switch>
@@ -46,9 +54,11 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-        <Router />
-      </WouterRouter>
+      <UserProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Router />
+        </WouterRouter>
+      </UserProvider>
     </QueryClientProvider>
   );
 }

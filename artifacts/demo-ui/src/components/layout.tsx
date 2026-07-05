@@ -1,12 +1,26 @@
-import { Link, useLocation } from "wouter"
-import { Activity, GitMerge, Mic, FileText, Database, LayoutDashboard, Target, BookOpen, Award, Trophy, Menu } from "lucide-react"
-import { useState } from "react"
-import StarField from "./StarField"
-import { Button } from "./ui/button"
+import { Link, useLocation } from "wouter";
+import {
+  Activity,
+  GitMerge,
+  Mic,
+  Database,
+  LayoutDashboard,
+  Target,
+  BookOpen,
+  Award,
+  Trophy,
+  Menu,
+  LogOut,
+} from "lucide-react";
+import { useState } from "react";
+import StarField from "./StarField";
+import { Button } from "./ui/button";
+import { useUser } from "../lib/userContext";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [location] = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, logout } = useUser();
 
   const links = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -17,13 +31,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/badges", label: "Badges", icon: Award },
     { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
     { href: "/voice-chat", label: "Voice Chat", icon: Mic },
-    { href: "/log", label: "Log", icon: Database },
-  ]
+    { href: "/log", label: "Log Mistake", icon: Database },
+  ];
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-[#050510] text-foreground dark selection:bg-primary selection:text-primary-foreground relative">
       <StarField />
-      
+
       <header className="border-b border-white/5 bg-[#050510]/80 backdrop-blur z-40 sticky top-0">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -37,22 +51,48 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           <nav className="hidden lg:flex items-center gap-6">
             {links.map((link) => {
-              const Icon = link.icon
-              const isActive = location === link.href
+              const Icon = link.icon;
+              const isActive = location === link.href;
               return (
                 <Link key={link.href} href={link.href}>
-                  <div className={`flex items-center gap-2 text-xs font-mono tracking-widest uppercase transition-colors hover:text-purple-400 cursor-pointer ${isActive ? "text-blue-400 font-bold" : "text-slate-400"}`}>
+                  <div
+                    className={`flex items-center gap-2 text-xs font-mono tracking-widest uppercase transition-colors hover:text-purple-400 cursor-pointer ${isActive ? "text-blue-400 font-bold" : "text-slate-400"}`}
+                  >
                     <Icon className="w-3.5 h-3.5" />
                     {link.label}
                   </div>
                 </Link>
-              )
+              );
             })}
           </nav>
 
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <div className="hidden lg:flex items-center gap-3">
+            {user && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-blue-500 flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">
+                      {user.name[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-xs font-mono text-slate-300">
+                    {user.name}
+                  </span>
+                </div>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-1 text-xs font-mono text-slate-500 hover:text-red-400 transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Logout
+                </button>
+              </>
+            )}
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
             className="lg:hidden text-slate-300 hover:text-white"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
@@ -61,21 +101,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="lg:hidden fixed inset-0 top-16 z-30 bg-[#050510]/95 backdrop-blur-xl border-b border-white/5 p-4 flex flex-col gap-4">
           {links.map((link) => {
-            const Icon = link.icon
-            const isActive = location === link.href
+            const Icon = link.icon;
+            const isActive = location === link.href;
             return (
-              <Link key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}>
-                <div className={`flex items-center gap-3 p-3 rounded-lg text-sm font-mono tracking-widest uppercase transition-colors ${isActive ? "bg-white/10 text-blue-400 font-bold" : "text-slate-400 hover:bg-white/5 hover:text-purple-400"}`}>
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <div
+                  className={`flex items-center gap-3 p-3 rounded-lg text-sm font-mono tracking-widest uppercase transition-colors ${isActive ? "bg-white/10 text-blue-400 font-bold" : "text-slate-400 hover:bg-white/5 hover:text-purple-400"}`}
+                >
                   <Icon className="w-5 h-5" />
                   {link.label}
                 </div>
               </Link>
-            )
+            );
           })}
+          {user && (
+            <button
+              onClick={logout}
+              className="flex items-center gap-3 p-3 rounded-lg text-sm font-mono text-red-400 hover:bg-white/5 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              Logout ({user.name})
+            </button>
+          )}
         </div>
       )}
 
@@ -83,5 +137,5 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
     </div>
-  )
+  );
 }
