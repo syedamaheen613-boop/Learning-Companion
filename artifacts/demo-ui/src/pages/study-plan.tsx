@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export function StudyPlan() {
-  const [studentId, setStudentId] = useState("student_1");
+  const [studentId, setStudentId] = useState(() => { try { return JSON.parse(localStorage.getItem("lc_user") || "{}").email || "student_1"; } catch { return "student_1"; } });
   const [loading, setLoading] = useState(false);
   const [planData, setPlanData] = useState<any>(null);
 

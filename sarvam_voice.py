@@ -1,13 +1,3 @@
-"""
-sarvam_voice.py
-
-Integration with Sarvam AI for speech-to-text and text-to-speech.
-
-Audio conversion note: Sarvam STT reliably accepts WAV (pcm_s16le) but
-often rejects browser-native WebM/OGG. We convert all audio to WAV with
-ffmpeg before sending. This is transparent to the caller.
-"""
-
 import base64
 import os
 import subprocess
@@ -15,7 +5,7 @@ import tempfile
 
 import requests
 
-SARVAM_API_KEY  = os.getenv("SARVAM_API_KEY")
+SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
 SARVAM_BASE_URL = "https://api.sarvam.ai"
 
 # Formats that Sarvam STT accepts natively (no conversion needed)
@@ -40,11 +30,16 @@ def _to_wav(src_path: str) -> tuple[str, bool]:
     try:
         result = subprocess.run(
             [
-                "ffmpeg", "-y",
-                "-i", src_path,
-                "-ar", "16000",
-                "-ac", "1",
-                "-sample_fmt", "s16",
+                "ffmpeg",
+                "-y",
+                "-i",
+                src_path,
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
+                "-sample_fmt",
+                "s16",
                 wav_path,
             ],
             capture_output=True,
@@ -76,16 +71,18 @@ def speech_to_text(audio_file_path: str, language_code: str = "unknown") -> str:
 
     wav_path, is_temp = _to_wav(audio_file_path)
     try:
-        url     = f"{SARVAM_BASE_URL}/speech-to-text"
+        url = f"{SARVAM_BASE_URL}/speech-to-text"
         headers = {"api-subscription-key": SARVAM_API_KEY}
         with open(wav_path, "rb") as f:
             files = {"file": (os.path.basename(wav_path), f, "audio/wav")}
-            data  = {
-                "model": "saaras:v2",
+            data = {
+                "model": "saaras:v3",
                 "language_code": language_code,
                 "mode": "transcribe",
             }
-            response = requests.post(url, headers=headers, files=files, data=data, timeout=30)
+            response = requests.post(
+                url, headers=headers, files=files, data=data, timeout=30
+            )
 
         if response.status_code != 200:
             print("SARVAM STT ERROR:", response.status_code, response.text[:300])
@@ -100,7 +97,9 @@ def speech_to_text(audio_file_path: str, language_code: str = "unknown") -> str:
                 pass
 
 
-def text_to_speech(text: str, language_code: str = "en-IN", output_path: str = "reply.wav") -> str:
+def text_to_speech(
+    text: str, language_code: str = "en-IN", output_path: str = "reply.wav"
+) -> str:
     """
     Convert *text* to speech via Sarvam TTS (bulbul:v2) and save to
     *output_path* as a WAV file. Returns the output path.
@@ -109,7 +108,7 @@ def text_to_speech(text: str, language_code: str = "en-IN", output_path: str = "
     if not SARVAM_API_KEY:
         raise RuntimeError("SARVAM_API_KEY environment variable is not set.")
 
-    url     = f"{SARVAM_BASE_URL}/text-to-speech"
+    url = f"{SARVAM_BASE_URL}/text-to-speech"
     headers = {
         "api-subscription-key": SARVAM_API_KEY,
         "Content-Type": "application/json",
@@ -118,7 +117,7 @@ def text_to_speech(text: str, language_code: str = "en-IN", output_path: str = "
         "inputs": [text[:500]],
         "target_language_code": language_code,
         "model": "bulbul:v2",
-        "speaker": "shubh",
+        "speaker": "anushka",
     }
 
     response = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -130,7 +129,7 @@ def text_to_speech(text: str, language_code: str = "en-IN", output_path: str = "
     result = response.json()
 
     audio_base64 = result["audios"][0]
-    audio_bytes  = base64.b64decode(audio_base64)
+    audio_bytes = base64.b64decode(audio_base64)
 
     with open(output_path, "wb") as f:
         f.write(audio_bytes)
@@ -146,7 +145,7 @@ def translate_to_english(text: str, source_language_code: str = "auto") -> str:
     if not SARVAM_API_KEY or not text.strip():
         return text
 
-    url     = f"{SARVAM_BASE_URL}/translate"
+    url = f"{SARVAM_BASE_URL}/translate"
     headers = {
         "api-subscription-key": SARVAM_API_KEY,
         "Content-Type": "application/json",

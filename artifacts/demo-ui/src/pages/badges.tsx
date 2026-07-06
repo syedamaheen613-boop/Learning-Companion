@@ -18,7 +18,7 @@ const iconMap: Record<string, any> = {
 };
 
 export function Badges() {
-  const [studentId, setStudentId] = useState("student_1");
+  const [studentId, setStudentId] = useState(() => { try { return JSON.parse(localStorage.getItem("lc_user") || "{}").email || "student_1"; } catch { return "student_1"; } });
   const [loading, setLoading] = useState(false);
   const [badgesData, setBadgesData] = useState<any>(null);
 

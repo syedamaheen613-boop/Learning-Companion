@@ -19,7 +19,7 @@ export function LogMistake() {
   const [showCreate, setShowCreate]     = useState(false)
 
   // Log mistake
-  const [studentId, setStudentId]   = useState("student_1")
+  const [studentId, setStudentId]   = useState(() => { try { return JSON.parse(localStorage.getItem("lc_user") || "{}").email || "student_1"; } catch { return "student_1"; } })
   const [students, setStudents]     = useState<{ id: string; name: string }[]>([])
   const [concept, setConcept]       = useState("")
   const [description, setDescription] = useState("")
@@ -135,19 +135,6 @@ export function LogMistake() {
         <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
         <CardContent className="p-8 relative z-10">
           <form onSubmit={handleSubmit} className="space-y-6">
-
-            <div className="space-y-2">
-              <Label className="text-slate-300 font-mono text-xs uppercase tracking-wider">Which student? *</Label>
-              {students.length > 0 ? (
-                <select value={studentId} onChange={e => setStudentId(e.target.value)}
-                  className="w-full font-mono bg-black/40 border border-white/10 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                  {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.id})</option>)}
-                </select>
-              ) : (
-                <Input value={studentId} onChange={e => setStudentId(e.target.value)} placeholder="e.g. student_1"
-                  className="font-mono bg-black/40 border-white/10 text-white focus-visible:ring-emerald-500" />
-              )}
-            </div>
 
             <div className="space-y-2">
               <Label className="text-slate-300 font-mono text-xs uppercase tracking-wider">What topic did you struggle with? *</Label>

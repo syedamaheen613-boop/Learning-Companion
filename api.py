@@ -49,6 +49,17 @@ def find_connection_to_past_mistake(student_id: str, new_concept_name: str):
         return [dict(r) for r in session.run(indirect_query, student_id=student_id, new_concept_name=new_concept_name)]
 
 
+def ensure_student_exists(student_id: str):
+    """Auto-create a Student node if it doesn't exist yet."""
+    query = """
+    MERGE (s:Student {id: $student_id})
+    ON CREATE SET s.name = $student_id, s.created = date()
+    RETURN s
+    """
+    with driver.session() as session:
+        session.run(query, student_id=student_id)
+
+
 def log_new_mistake(student_id: str, concept_name: str, description: str):
     # Ensure concept exists
     with driver.session() as session:
@@ -285,6 +296,7 @@ def log_mistake():
     description = data.get("description")
     if not all([student_id, concept, description]):
         return jsonify({"error": "student_id, concept, and description are required"}), 400
+    ensure_student_exists(student_id)
     log_new_mistake(student_id, concept, description)
     return jsonify({"status": "logged"})
 
@@ -306,6 +318,8 @@ def dashboard():
     student_id = request.args.get("student_id")
     if not student_id:
         return jsonify({"error": "student_id is required"}), 400
+
+    ensure_student_exists(student_id)
 
     with driver.session() as session:
         row = session.run("""
