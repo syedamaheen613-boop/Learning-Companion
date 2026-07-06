@@ -3,6 +3,7 @@ import os
 import subprocess
 import mimetypes
 import requests
+import tempfile
 
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
 SARVAM_BASE_URL = "https://api.sarvam.ai"
