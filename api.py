@@ -37,6 +37,17 @@ driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
 # ── core graph helpers ────────────────────────────────────────────────────────
 
 
+def ensure_concept_exists(concept_name: str, subject: str = "General"):
+    """Auto-create a Concept node if it doesn't exist yet."""
+    query = """
+    MERGE (c:Concept {name: $concept_name})
+    ON CREATE SET c.subject = $subject
+    RETURN c
+    """
+    with driver.session() as session:
+        session.run(query, concept_name=concept_name, subject=subject)
+
+
 def find_connection_to_past_mistake(student_id: str, new_concept_name: str):
     direct_query = """
     MATCH (s:Student {id:$student_id})-[:MADE]->(m:Mistake)-[:ABOUT]->(c:Concept {name:$new_concept_name})
@@ -277,17 +288,16 @@ def ask():
     if not student_id or not topic:
         return jsonify({"error": "student_id and topic are required"}), 400
 
+    ensure_student_exists(student_id)
+    ensure_concept_exists(topic)
+
     connections = find_connection_to_past_mistake(student_id, topic)
     try:
         reply = ask_claude(topic, connections[0] if connections else None)
     except Exception:
-        reply = ask_claude(topic)  # knowledge-base fallback
+        reply = f"{topic} is an interesting topic! Keep exploring it."
 
     return jsonify({"topic": topic, "reply": reply, "connections": connections})
-
-
-# ── voice ─────────────────────────────────────────────────────────────────────
-
 
 @app.route("/api/ask_voice", methods=["POST"])
 def ask_voice():

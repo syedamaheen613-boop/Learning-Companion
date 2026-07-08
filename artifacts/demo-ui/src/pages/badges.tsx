@@ -39,6 +39,10 @@ export function Badges() {
   };
 
   useEffect(() => {
+    if (studentId) fetchBadges();
+  }, [studentId]);
+
+  useEffect(() => {
     fetchBadges();
   }, []);
 
@@ -59,22 +63,6 @@ export function Badges() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Input 
-            value={studentId} 
-            onChange={(e) => setStudentId(e.target.value)} 
-            className="font-mono bg-white/5 border-white/10 text-white w-48 focus-visible:ring-amber-500"
-            placeholder="Student ID"
-            onKeyDown={(e) => e.key === 'Enter' && fetchBadges()}
-          />
-          <Button 
-            onClick={fetchBadges} 
-            disabled={loading || !studentId}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-mono"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Load"}
-          </Button>
-        </div>
       </div>
 
       {loading && (

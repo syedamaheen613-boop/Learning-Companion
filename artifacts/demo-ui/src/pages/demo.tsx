@@ -92,15 +92,6 @@ export function DemoStage() {
           <Card className="galaxy-card border-t-[3px] border-t-purple-500 shadow-[0_0_30px_rgba(124,58,237,0.1)]">
             <CardContent className="p-6 space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="student-id" className="text-slate-300">Student Identifier</Label>
-                <Input 
-                  id="student-id" 
-                  value={studentId} 
-                  onChange={(e) => setStudentId(e.target.value)} 
-                  className="font-mono bg-white/5 border-white/10 text-white focus-visible:ring-purple-500"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="topic" className="text-slate-300">Target Concept</Label>
                 <Input 
                   id="topic" 
