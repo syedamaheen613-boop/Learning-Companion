@@ -60,11 +60,9 @@ def _to_wav(src_path: str) -> tuple[str, bool]:
     return wav_path, True
 
 
-def speech_to_text(audio_file_path: str, language_code: str = "unknown") -> str:
+def speech_to_text(audio_file_path: str, language_code: str = "en-IN") -> str:
     """
-    Transcribe *audio_file_path* via Sarvam STT (saaras:v3).
-    Input can be any audio format supported by ffmpeg.
-    language_code='unknown' triggers Sarvam auto language-detection.
+    Transcribe *audio_file_path* via Sarvam STT.
     """
     if not SARVAM_API_KEY:
         raise RuntimeError("SARVAM_API_KEY environment variable is not set.")
@@ -73,51 +71,25 @@ def speech_to_text(audio_file_path: str, language_code: str = "unknown") -> str:
     try:
         url = f"{SARVAM_BASE_URL}/speech-to-text"
         headers = {"api-subscription-key": SARVAM_API_KEY}
-        # Debug information
-        print("=" * 50)
-        print("Sending audio to Sarvam STT")
-        print("Audio path:", wav_path)
-        print("Extension:", os.path.splitext(wav_path)[1])
-        print("Size:", os.path.getsize(wav_path), "bytes")
-
-        mime = mimetypes.guess_type(wav_path)[0] or "application/octet-stream"
-        print("Detected MIME type:", mime)
 
         with open(wav_path, "rb") as f:
-            files = {
-                "file": (
-                    os.path.basename(wav_path),
-                    f,
-                    mime,
-                )
-            }
+            # Force audio/wav mime type to be safe
+            files = {"file": (os.path.basename(wav_path), f, "audio/wav")}
 
-            data = {
-                "model": "saaras:v1",
-                "language_code": "hi-IN",  # You can also try "en-IN" or "unknown"
-            }
+            # Use the correct saaras:v1 model and remove the invalid "mode" field
+            data = {"model": "saaras:v1", "language_code": "en-IN"}
 
             response = requests.post(
-                url,
-                headers=headers,
-                files=files,
-                data=data,
-                timeout=30,
+                url, headers=headers, files=files, data=data, timeout=30
             )
 
+        # If Sarvam rejects it, throw an error with their EXACT reason so it appears on your screen!
         if response.status_code != 200:
-            print("=" * 50)
-            print("SARVAM STT ERROR")
-            print("Status Code:", response.status_code)
-            print("Response Body:")
-            print(response.text)
-            print("=" * 50)
-
-        response.raise_for_status()
+            error_msg = f"Sarvam API Rejected Request: {response.text}"
+            print(error_msg)
+            raise RuntimeError(error_msg)
 
         result = response.json()
-        print("Sarvam Response:", result)
-
         return result.get("transcript", "")
     finally:
         if is_temp:
