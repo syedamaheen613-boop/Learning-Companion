@@ -46,10 +46,6 @@ export function Dashboard() {
     loadData(queryId);
   }, [queryId]);
 
-  const handleLoad = () => {
-    if (studentId) setQueryId(studentId);
-  };
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl space-y-8 relative z-10">
       {/* Header & Controls */}
@@ -61,23 +57,6 @@ export function Dashboard() {
           <p className="text-slate-400 font-mono text-sm">
             Overview of learning progress and structural integrity.
           </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Input
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            className="font-mono bg-white/5 border-white/10 text-white w-48 focus-visible:ring-purple-500"
-            placeholder="Student ID"
-            onKeyDown={(e) => e.key === "Enter" && handleLoad()}
-          />
-          <Button
-            onClick={handleLoad}
-            disabled={loading || !studentId}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-mono"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Load"}
-          </Button>
         </div>
       </div>
 
