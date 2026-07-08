@@ -93,9 +93,8 @@ def speech_to_text(audio_file_path: str, language_code: str = "unknown") -> str:
             }
 
             data = {
-                "model": "saaras:v3",
-                "language_code": language_code,
-                "mode": "transcribe",
+                "model": "saaras:v1",
+                "language_code": "hi-IN",  # You can also try "en-IN" or "unknown"
             }
 
             response = requests.post(
