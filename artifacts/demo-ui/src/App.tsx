@@ -41,7 +41,6 @@ function Router() {
         <Route path="/study-plan" component={StudyPlan} />
         <Route path="/badges" component={Badges} />
         <Route path="/leaderboard" component={Leaderboard} />
-        <Route path="/voice-chat" component={VoiceChat} />
         <Route path="/demo" component={DemoStage} />
         <Route path="/graph" component={ConceptMap} />
         <Route path="/log" component={LogMistake} />

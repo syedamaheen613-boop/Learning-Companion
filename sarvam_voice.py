@@ -76,8 +76,10 @@ def speech_to_text(audio_file_path: str, language_code: str = "en-IN") -> str:
             # Force audio/wav mime type to be safe
             files = {"file": (os.path.basename(wav_path), f, "audio/wav")}
 
-            # Use the correct saaras:v1 model and remove the invalid "mode" field
-            data = {"model": "saaras:v1", "language_code": "en-IN"}
+            data = {
+                "model": "saaras:v3",
+                "language_code": "unknown" # Or "en-IN" if you prefer
+            }
 
             response = requests.post(
                 url, headers=headers, files=files, data=data, timeout=30
@@ -100,8 +102,7 @@ def speech_to_text(audio_file_path: str, language_code: str = "en-IN") -> str:
 
 
 def text_to_speech(
-    text: str, language_code: str = "en-IN", output_path: str = "reply.wav"
-) -> str:
+    text: str, language_code: str = "en-IN", output_path: str = "reply.wav") -> str:
     """
     Convert *text* to speech via Sarvam TTS (bulbul:v2) and save to
     *output_path* as a WAV file. Returns the output path.

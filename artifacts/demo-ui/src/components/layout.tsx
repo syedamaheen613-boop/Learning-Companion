@@ -30,7 +30,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/study-plan", label: "Study Plan", icon: BookOpen },
     { href: "/badges", label: "Badges", icon: Award },
     { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
-    { href: "/voice-chat", label: "Voice Chat", icon: Mic },
     { href: "/log", label: "Log Mistake", icon: Database },
   ];
 
